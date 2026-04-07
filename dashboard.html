@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Blue — Instructor Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e14; --surface: #111720; --surface2: #161d29; --surface3: #1c2535;
+  --border: #2a3548; --border2: #3a4a62;
+  --text: #e8edf5; --text2: #8fa3bf; --text3: #5a7090;
+  --accent: #00d4ff; --success: #00e676; --warning: #ffab40;
+  --danger: #ff5252; --gold: #ffd54f;
+  --teal: #2ec4b6; --blue: #1F4E79; --purple: #4B2C6E;
+  --mono: 'Space Mono', monospace; --sans: 'Syne', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none; z-index: 9999;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 1rem; }
+.topbar-logo { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; }
+.topbar-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+.topbar-right { display: flex; align-items: center; gap: 1.25rem; }
+.live-badge {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--success);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+.refresh-info { font-family: var(--mono); font-size: 0.65rem; color: var(--text3); }
+.btn-refresh {
+  background: transparent; color: var(--accent); font-family: var(--mono);
+  font-size: 0.65rem; padding: 0.4rem 0.9rem; border: 1px solid rgba(0,212,255,0.35);
+  border-radius: 2px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: all 0.15s;
+}
+.btn-refresh:hover { background: rgba(0,212,255,0.08); }
+.btn-clear {
+  background: transparent; color: var(--danger); font-family: var(--mono);
+  font-size: 0.65rem; padding: 0.4rem 0.9rem; border: 1px solid rgba(255,82,82,0.35);
+  border-radius: 2px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: all 0.15s;
+}
+.btn-clear:hover { background: rgba(255,82,82,0.08); }
+
+/* ── STATS ROW ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+  padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1rem 1.25rem;
+}
+.stat-val { font-family: var(--mono); font-size: 2rem; font-weight: 700; color: var(--text); }
+.stat-val.green { color: var(--success); }
+.stat-val.gold  { color: var(--gold); }
+.stat-val.teal  { color: var(--accent); }
+.stat-label { font-family: var(--mono); font-size: 0.6rem; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.25rem; }
+
+/* ── ROOM PROGRESS BAR ── */
+.room-progress {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+  padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+}
+.room-bar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.75rem 1rem; }
+.room-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.room-bar-name { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
+.room-bar-count { font-family: var(--mono); font-size: 0.7rem; color: var(--text2); }
+.bar-track { height: 6px; background: var(--border2); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+/* ── RESULTS TABLE ── */
+.table-wrapper { padding: 1.25rem 1.5rem; overflow-x: auto; }
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.section-title { font-family: var(--mono); font-size: 0.7rem; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; }
+.section-sub { font-family: var(--mono); font-size: 0.62rem; color: var(--text3); }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead tr { background: var(--surface); border-bottom: 2px solid var(--border2); }
+th {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--text3);
+  letter-spacing: 0.1em; text-transform: uppercase; padding: 0.6rem 0.75rem;
+  text-align: left; white-space: nowrap;
+}
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--accent); }
+th .sort-arrow { margin-left: 0.3rem; opacity: 0.4; }
+th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+tbody tr.new-row { animation: highlightRow 2s ease; }
+@keyframes highlightRow {
+  0%   { background: rgba(0,230,118,0.15); }
+  100% { background: transparent; }
+}
+
+td { padding: 0.65rem 0.75rem; vertical-align: middle; }
+.td-team { font-weight: 700; color: var(--text); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-time { font-family: var(--mono); color: var(--success); font-weight: 700; }
+.td-base { font-family: var(--mono); color: var(--text2); font-size: 0.75rem; }
+.td-hints { font-family: var(--mono); font-size: 0.8rem; }
+.td-hints.zero { color: var(--success); }
+.td-hints.some { color: var(--warning); }
+.td-room-hints { display: flex; gap: 0.35rem; }
+.room-hint-chip {
+  font-family: var(--mono); font-size: 0.62rem; padding: 0.15em 0.45em;
+  border-radius: 2px; white-space: nowrap;
+}
+.room-hint-chip.none { background: rgba(0,230,118,0.1); color: var(--success); border: 1px solid rgba(0,230,118,0.25); }
+.room-hint-chip.some { background: rgba(255,171,64,0.1); color: var(--warning); border: 1px solid rgba(255,171,64,0.25); }
+.td-when { font-family: var(--mono); font-size: 0.68rem; color: var(--text3); }
+.td-detail-btn {
+  background: transparent; color: var(--accent); font-family: var(--mono);
+  font-size: 0.62rem; padding: 0.2rem 0.5rem; border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 2px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.td-detail-btn:hover { background: rgba(0,212,255,0.08); }
+.rank-badge {
+  font-family: var(--mono); font-size: 0.75rem; font-weight: 700;
+  width: 1.6rem; text-align: center;
+}
+.rank-badge.r1 { color: var(--gold); }
+.rank-badge.r2 { color: var(--text2); }
+.rank-badge.r3 { color: #cd7f32; }
+.rank-badge.rn { color: var(--text3); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center; padding: 4rem 2rem;
+  color: var(--text3); font-family: var(--mono); font-size: 0.8rem; line-height: 2;
+}
+.empty-state .big { font-size: 2rem; margin-bottom: 0.5rem; }
+
+/* ── DETAIL MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(6px);
+  align-items: center; justify-content: center; padding: 2rem;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 2rem; max-width: 560px; width: 100%;
+  max-height: 80vh; overflow-y: auto;
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.modal-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+.modal-close {
+  background: transparent; color: var(--text3); font-size: 1.2rem;
+  border: none; cursor: pointer; padding: 0.2rem 0.5rem; transition: color 0.15s;
+}
+.modal-close:hover { color: var(--text); }
+.modal-section { margin-bottom: 1rem; }
+.modal-section-label {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--text3);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.4rem;
+  padding-bottom: 0.3rem; border-bottom: 1px solid var(--border);
+}
+.modal-q-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.3rem 0; border-bottom: 1px solid rgba(42,53,72,0.4);
+  font-family: var(--mono); font-size: 0.72rem;
+}
+.modal-q-label { color: var(--text2); }
+.modal-q-status-hint { color: var(--warning); }
+.modal-q-status-ok { color: var(--success); }
+.modal-stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 0.75rem; }
+.modal-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 0.75rem; }
+.modal-stat-val { font-family: var(--mono); font-size: 1.2rem; font-weight: 700; color: var(--text); }
+.modal-stat-label { font-family: var(--mono); font-size: 0.58rem; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.2rem; }
+
+/* ── LAST UPDATED ── */
+.last-updated { font-family: var(--mono); font-size: 0.62rem; color: var(--text3); padding: 0.5rem 1.5rem 1rem; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── PIN MODAL ── */
+.pin-overlay {
+  display: none; position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,0.88); backdrop-filter: blur(8px);
+  align-items: center; justify-content: center;
+}
+.pin-overlay.show { display: flex; }
+.pin-box {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 2rem; max-width: 360px; width: 90%;
+  text-align: center;
+}
+.pin-title {
+  font-size: 1rem; font-weight: 800; color: var(--text);
+  margin-bottom: 0.25rem;
+}
+.pin-sub {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--text3);
+  margin-bottom: 1.25rem; line-height: 1.6;
+}
+.pin-dots {
+  display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;
+}
+.pin-dot {
+  width: 44px; height: 54px; background: var(--surface2);
+  border: 2px solid var(--border2); border-radius: 3px;
+  font-family: var(--mono); font-size: 1.5rem; font-weight: 700;
+  color: var(--danger); display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.pin-dot.filled { border-color: var(--danger); background: rgba(255,82,82,0.08); }
+.pin-dot.wrong  { animation: pinShake 0.4s; }
+@keyframes pinShake {
+  0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)}
+}
+.pin-numpad {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 0.45rem; margin-bottom: 0.75rem;
+}
+.pin-btn {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 3px;
+  font-family: var(--mono); font-size: 1.1rem; color: var(--text);
+  padding: 0.7rem; cursor: pointer; transition: all 0.15s;
+}
+.pin-btn:hover { border-color: var(--danger); color: var(--danger); background: rgba(255,82,82,0.06); }
+.pin-btn.del-btn { color: var(--text3); font-size: 0.9rem; }
+.pin-error { font-family: var(--mono); font-size: 0.68rem; color: var(--danger); min-height: 1.2em; }
+.pin-cancel {
+  background: transparent; color: var(--text3); font-family: var(--mono);
+  font-size: 0.65rem; padding: 0.4rem 1rem; border: 1px solid var(--border);
+  border-radius: 2px; cursor: pointer; margin-top: 0.5rem;
+  letter-spacing: 0.08em; text-transform: uppercase; transition: all 0.15s;
+}
+.pin-cancel:hover { color: var(--text); border-color: var(--border2); }
+.pin-warning {
+  background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.25);
+  border-radius: 3px; padding: 0.6rem 0.8rem; margin-bottom: 1rem;
+  font-family: var(--mono); font-size: 0.65rem; color: var(--danger); line-height: 1.5;
+}
+/* Success flash */
+.clear-success {
+  display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 500;
+  background: var(--surface); border: 1px solid rgba(0,230,118,0.4);
+  border-radius: 4px; padding: 0.75rem 1.25rem;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--success);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.clear-success.show { display: block; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from{transform:translateY(10px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+/* ── LIVE PROGRESS SECTION ── */
+.live-section {
+  padding: 1rem 1.5rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,212,255,0.02);
+}
+.live-section-header {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;
+}
+.live-section-title {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--accent);
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+.live-section-count {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--text3);
+  background: var(--surface2); border: 1px solid var(--border2);
+  padding: 0.15em 0.5em; border-radius: 10px;
+}
+.live-pulse {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+  animation: livePulse 1.2s infinite;
+}
+@keyframes livePulse {
+  0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,212,255,0.4)}
+  50%{opacity:0.7;box-shadow:0 0 0 5px rgba(0,212,255,0)}
+}
+.live-empty {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--text3);
+  padding: 0.5rem 0 0.75rem; letter-spacing: 0.06em;
+}
+.progress-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.65rem; margin-bottom: 0.75rem;
+}
+.progress-card {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 0.75rem 1rem;
+  transition: border-color 0.3s; position: relative; overflow: hidden;
+}
+.progress-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; border-radius: 4px 0 0 4px;
+}
+.progress-card.room-1::before { background: #2ec4b6; }
+.progress-card.room-2::before { background: #00d4ff; }
+.progress-card.room-3::before { background: #9c6fce; }
+.progress-card.entering-code { border-color: rgba(255,213,79,0.5); }
+.progress-card.entering-code::before { background: var(--gold); }
+.pc-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.5rem; }
+.pc-name {
+  font-weight: 800; font-size: 0.9rem; color: var(--text);
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pc-elapsed {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--text3);
+  white-space: nowrap;
+}
+.pc-location {
+  font-family: var(--mono); font-size: 0.65rem; margin-bottom: 0.5rem;
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.pc-room-badge {
+  padding: 0.15em 0.5em; border-radius: 2px; font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.pc-room-badge.room-1 { background: rgba(46,196,182,0.15); color: #2ec4b6; border: 1px solid rgba(46,196,182,0.3); }
+.pc-room-badge.room-2 { background: rgba(0,212,255,0.12); color: #00d4ff; border: 1px solid rgba(0,212,255,0.25); }
+.pc-room-badge.room-3 { background: rgba(156,111,206,0.15); color: #9c6fce; border: 1px solid rgba(156,111,206,0.3); }
+.pc-room-badge.code   { background: rgba(255,213,79,0.12); color: var(--gold); border: 1px solid rgba(255,213,79,0.3); }
+.pc-q-text { color: var(--text2); font-size: 0.7rem; }
+.pc-bar-track {
+  height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 0.4rem;
+}
+.pc-bar-fill {
+  height: 100%; border-radius: 2px; transition: width 0.6s ease;
+}
+.pc-bar-fill.room-1 { background: #2ec4b6; }
+.pc-bar-fill.room-2 { background: #00d4ff; }
+.pc-bar-fill.room-3 { background: #9c6fce; }
+.pc-bar-fill.code   { background: var(--gold); }
+.pc-footer {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pc-hints-badge {
+  font-family: var(--mono); font-size: 0.6rem;
+  padding: 0.1em 0.45em; border-radius: 2px;
+}
+.pc-hints-badge.zero { color: var(--success); background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.2); }
+.pc-hints-badge.some { color: var(--warning); background: rgba(255,171,64,0.08); border: 1px solid rgba(255,171,64,0.2); }
+.pc-rooms-done { display: flex; gap: 0.25rem; }
+.pc-room-pip {
+  width: 18px; height: 18px; border-radius: 2px;
+  font-size: 0.55rem; display: flex; align-items: center; justify-content: center;
+}
+.pc-room-pip.done { background: rgba(0,230,118,0.12); color: var(--success); border: 1px solid rgba(0,230,118,0.25); }
+.pc-room-pip.todo { background: var(--surface); color: var(--text3); border: 1px solid var(--border); }
+.pc-status-entering {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--gold);
+  animation: statusBlink 1s infinite;
+}
+@keyframes statusBlink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">CODE BLUE</div>
+    <div class="topbar-title">Instructor Dashboard</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><div class="live-dot"></div>Live</div>
+    <div class="refresh-info" id="refresh-info">Auto-refresh every 30s</div>
+    <button class="btn-refresh" onclick="fetchResults()">↻ Refresh Now</button>
+    <button class="btn-clear" onclick="openPinModal()">✕ Clear Session</button>
+  </div>
+</div>
+
+<!-- STATS ROW -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-val green" id="stat-teams">—</div>
+    <div class="stat-label">Teams Completed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val teal" id="stat-fastest">—</div>
+    <div class="stat-label">Fastest Time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val gold" id="stat-avg">—</div>
+    <div class="stat-label">Average Time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" id="stat-hints">—</div>
+    <div class="stat-label">Avg Hints / Team</div>
+  </div>
+</div>
+
+<!-- ROOM PROGRESS BARS -->
+<div class="room-progress">
+  <div class="room-bar-card">
+    <div class="room-bar-header">
+      <div class="room-bar-name" style="color:#2ec4b6">Room 1 — Postpartum Hemorrhage</div>
+      <div class="room-bar-count" id="r1-count">0 teams</div>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="r1-bar" style="width:0%;background:#2ec4b6"></div></div>
+  </div>
+  <div class="room-bar-card">
+    <div class="room-bar-header">
+      <div class="room-bar-name" style="color:#00d4ff">Room 2 — Pathologic Jaundice</div>
+      <div class="room-bar-count" id="r2-count">0 teams</div>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="r2-bar" style="width:0%;background:#00d4ff"></div></div>
+  </div>
+  <div class="room-bar-card">
+    <div class="room-bar-header">
+      <div class="room-bar-name" style="color:#9c6fce">Room 3 — Postpartum Psychosis</div>
+      <div class="room-bar-count" id="r3-count">0 teams</div>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="r3-bar" style="width:0%;background:#9c6fce"></div></div>
+  </div>
+</div>
+
+<!-- RESULTS TABLE -->
+
+<!-- ── LIVE PROGRESS SECTION ───────────────────────────────────── -->
+<div class="live-section" id="live-section">
+  <div class="live-section-header">
+    <div class="live-pulse"></div>
+    <div class="live-section-title">// Live Progress</div>
+    <div class="live-section-count" id="live-count">0 teams active</div>
+  </div>
+  <div id="live-cards-area">
+    <div class="live-empty" id="live-empty">No teams have started yet — progress cards will appear here when students begin.</div>
+  </div>
+</div>
+
+<div class="table-wrapper">
+  <div class="section-header">
+    <div class="section-title">// Completed Teams</div>
+    <div class="section-sub" id="table-sub">Sorted by fastest base time</div>
+  </div>
+  <div id="table-area">
+    <div class="empty-state">
+      <div class="big">⏳</div>
+      Waiting for teams to complete the simulation…<br>
+      Results will appear here automatically.
+    </div>
+  </div>
+</div>
+<div class="last-updated" id="last-updated"></div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-team-name">Team Detail</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+// ── State ──────────────────────────────────────────────────────────────────
+let allResults   = [];
+let liveResults  = [];   // in-progress teams from 'progress' collection
+let knownIds     = new Set();
+let sortField    = 'baseSeconds';
+let sortAsc      = true;
+let refreshTimer = null;
+let unsubscribeProgress = null;  // onSnapshot unsubscribe handle
+let unsubscribeResults  = null;  // onSnapshot unsubscribe handle
+
+// ── Fetch ──────────────────────────────────────────────────────────────────
+// ── Real-time listeners (replace poll-based fetchResults) ─────────────────
+window.fetchResults = function() {
+  // Manual refresh — just re-render with current data (listeners are live)
+  renderDashboard([]);
+  renderLiveProgress();
+  document.getElementById('last-updated').textContent =
+    'Last updated: ' + new Date().toLocaleTimeString();
+};
+
+function startRealtimeListeners() {
+  // ── Results listener (completed teams) ──────────────────────────────────
+  const resultsQ = db.collection('results').orderBy('completedAt', 'asc');
+  unsubscribeResults = resultsQ.onSnapshot((snap) => {
+    const newIds = new Set();
+    allResults = snap.docs.map(d => { newIds.add(d.id); return { id: d.id, ...d.data() }; });
+    const justArrived = [...newIds].filter(id => !knownIds.has(id));
+    knownIds = newIds;
+    renderDashboard(justArrived);
+    document.getElementById('last-updated').textContent =
+      'Live — last update: ' + new Date().toLocaleTimeString();
+  }, (err) => {
+    console.error('Results listener error:', err);
+    document.getElementById('last-updated').textContent =
+      '⚠ Could not reach Firebase — check your connection. ' + new Date().toLocaleTimeString();
+  });
+
+  // ── Progress listener (in-game teams) ───────────────────────────────────
+  unsubscribeProgress = db.collection('progress').onSnapshot((snap) => {
+    liveResults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderLiveProgress();
+  }, (err) => {
+    console.warn('Progress listener error:', err);
+  });
+}
+
+// ── Clear session ──────────────────────────────────────────────────────────
+// ── PIN-protected clear ───────────────────────────────────────────────────
+const INSTRUCTOR_PIN = '1234'; // ← change this to your preferred 4-digit PIN
+let pinInput = '';
+
+window.openPinModal = function() {
+  pinInput = '';
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  buildPinNumpad();
+  document.getElementById('pin-overlay').classList.add('show');
+};
+
+window.closePinModal = function() {
+  document.getElementById('pin-overlay').classList.remove('show');
+  pinInput = '';
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+};
+
+function buildPinNumpad() {
+  const numpad = document.getElementById('pin-numpad');
+  numpad.innerHTML = '';
+  for (let i = 1; i <= 9; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'pin-btn';
+    btn.textContent = i;
+    btn.onclick = () => pinDigit(String(i));
+    numpad.appendChild(btn);
+  }
+  const del = document.createElement('button');
+  del.className = 'pin-btn del-btn';
+  del.textContent = '⌫';
+  del.onclick = () => { pinInput = pinInput.slice(0,-1); updatePinDots(); };
+  numpad.appendChild(del);
+
+  const zero = document.createElement('button');
+  zero.className = 'pin-btn';
+  zero.textContent = '0';
+  zero.onclick = () => pinDigit('0');
+  numpad.appendChild(zero);
+
+  const clr = document.createElement('button');
+  clr.className = 'pin-btn del-btn';
+  clr.textContent = 'C';
+  clr.onclick = () => { pinInput = ''; updatePinDots(); };
+  numpad.appendChild(clr);
+}
+
+function pinDigit(d) {
+  if (pinInput.length >= 4) return;
+  document.getElementById('pin-error').textContent = '';
+  pinInput += d;
+  updatePinDots();
+  if (pinInput.length === 4) {
+    setTimeout(checkPin, 180); // brief pause so last dot fills visibly
+  }
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const el = document.getElementById('pd' + i);
+    el.textContent = pinInput[i] ? '●' : '_';
+    el.className = 'pin-dot' + (pinInput[i] ? ' filled' : '');
+  }
+}
+
+function checkPin() {
+  if (pinInput === INSTRUCTOR_PIN) {
+    closePinModal();
+    clearAllResults();
+  } else {
+    // Wrong PIN — shake dots and reset
+    for (let i = 0; i < 4; i++) {
+      const el = document.getElementById('pd' + i);
+      el.classList.add('wrong');
+    }
+    document.getElementById('pin-error').textContent = 'Incorrect PIN. Try again.';
+    setTimeout(() => {
+      pinInput = '';
+      updatePinDots();
+      for (let i = 0; i < 4; i++) {
+        document.getElementById('pd' + i).classList.remove('wrong');
+      }
+    }, 800);
+  }
+}
+
+async function clearAllResults() {
+  try {
+    // Clear both results and any lingering progress docs
+    const [resultsSnap, progressSnap] = await Promise.all([
+      db.collection('results').get(),
+      db.collection('progress').get()
+    ]);
+    await Promise.all([
+      ...resultsSnap.docs.map(d => db.collection('results').doc(d.id).delete()),
+      ...progressSnap.docs.map(d => db.collection('progress').doc(d.id).delete())
+    ]);
+    allResults  = [];
+    liveResults = [];
+    knownIds    = new Set();
+    renderDashboard([]);
+    renderLiveProgress();
+    // Show success toast
+    const toast = document.getElementById('clear-success');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  } catch(err) {
+    console.error('Clear error:', err);
+    alert('Could not clear results. Make sure your Firestore rules allow delete, then try again.');
+  }
+}
+
+// Keep confirmClear as alias (no longer called but safe to have)
+window.confirmClear = window.openPinModal;
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderDashboard(newIds) {
+  const total = allResults.length;
+
+  // Stats
+  document.getElementById('stat-teams').textContent = total || '—';
+
+  if (total > 0) {
+    const sorted = [...allResults].sort((a,b) => (a.baseSeconds||0) - (b.baseSeconds||0));
+    document.getElementById('stat-fastest').textContent = sorted[0].baseTime || sorted[0].finalTime || '—';
+    const avgSecs = Math.round(allResults.reduce((s,r) => s + (r.baseSeconds||0), 0) / total);
+    document.getElementById('stat-avg').textContent = secsToTime(avgSecs);
+    const avgHints = (allResults.reduce((s,r) => s + (r.totalHints||0), 0) / total).toFixed(1);
+    document.getElementById('stat-hints').textContent = avgHints;
+  } else {
+    ['stat-fastest','stat-avg','stat-hints'].forEach(id => document.getElementById(id).textContent = '—');
+  }
+
+  // Room bars — all teams have completed all 3 rooms (data only written on completion)
+  // but we can show per-room hint distribution
+  ['r1','r2','r3'].forEach((r,i) => {
+    const pct = total > 0 ? 100 : 0;
+    document.getElementById(r + '-bar').style.width = pct + '%';
+    document.getElementById(r + '-count').textContent = total + ' team' + (total !== 1 ? 's' : '');
+  });
+
+  // Table
+  renderTable(newIds);
+}
+
+function renderTable(newIds) {
+  const area = document.getElementById('table-area');
+  if (allResults.length === 0) {
+    area.innerHTML = `<div class="empty-state"><div class="big">⏳</div>Waiting for teams to complete the simulation…<br>Results will appear here automatically.</div>`;
+    return;
+  }
+
+  // Sort
+  const sorted = [...allResults].sort((a, b) => {
+    let av = a[sortField], bv = b[sortField];
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    if (av < bv) return sortAsc ? -1 : 1;
+    if (av > bv) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  const cols = [
+    { key: 'rank',        label: '#',           sortable: false },
+    { key: 'teamName',    label: 'Team',         sortable: true  },
+    { key: 'finalTime',   label: 'Final Time',   sortable: true  },
+    { key: 'baseSeconds', label: 'Base Time',    sortable: true  },
+    { key: 'totalHints',  label: 'Hints',        sortable: true  },
+    { key: 'room-hints',  label: 'By Room',      sortable: false },
+    { key: 'completedAt', label: 'Completed',    sortable: true  },
+    { key: 'detail',      label: '',             sortable: false },
+  ];
+
+  let html = `<table><thead><tr>`;
+  cols.forEach(col => {
+    if (!col.sortable) {
+      html += `<th>${col.label}</th>`;
+    } else {
+      const isActive = sortField === col.key;
+      const arrow = isActive ? (sortAsc ? '↑' : '↓') : '↕';
+      html += `<th class="sortable${isActive ? ' sorted' : ''}" onclick="setSort('${col.key}')">
+        ${col.label} <span class="sort-arrow">${arrow}</span>
+      </th>`;
+    }
+  });
+  html += `</tr></thead><tbody>`;
+
+  sorted.forEach((r, idx) => {
+    const isNew   = newIds.includes(r.id);
+    const rankNum = idx + 1;
+    const rankCls = rankNum === 1 ? 'r1' : rankNum === 2 ? 'r2' : rankNum === 3 ? 'r3' : 'rn';
+    const rankTxt = rankNum <= 3 ? ['🥇','🥈','🥉'][rankNum-1] : rankNum;
+
+    const whenTs = r.completedAt?.toDate ? r.completedAt.toDate() : null;
+    const whenStr = whenTs ? whenTs.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+
+    const h1 = r.room1Hints || 0;
+    const h2 = r.room2Hints || 0;
+    const h3 = r.room3Hints || 0;
+    const totalH = r.totalHints || 0;
+
+    html += `<tr class="${isNew ? 'new-row' : ''}">
+      <td><span class="rank-badge ${rankCls}">${rankTxt}</span></td>
+      <td class="td-team" title="${esc(r.teamName)}">${esc(r.teamName || 'Unnamed')}</td>
+      <td class="td-time">${r.finalTime || '—'}</td>
+      <td class="td-base">${r.baseTime || '—'}</td>
+      <td class="td-hints ${totalH === 0 ? 'zero' : 'some'}">${totalH}</td>
+      <td>
+        <div class="td-room-hints">
+          <span class="room-hint-chip ${h1===0?'none':'some'}">R1: ${h1===0?'✓':h1}</span>
+          <span class="room-hint-chip ${h2===0?'none':'some'}">R2: ${h2===0?'✓':h2}</span>
+          <span class="room-hint-chip ${h3===0?'none':'some'}">R3: ${h3===0?'✓':h3}</span>
+        </div>
+      </td>
+      <td class="td-when">${whenStr}</td>
+      <td><button class="td-detail-btn" onclick="showDetail('${r.id}')">Detail →</button></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  area.innerHTML = html;
+}
+
+// ── Sort ───────────────────────────────────────────────────────────────────
+window.setSort = function(field) {
+  if (sortField === field) sortAsc = !sortAsc;
+  else { sortField = field; sortAsc = true; }
+  renderTable([]);
+};
+
+// ── Detail modal ───────────────────────────────────────────────────────────
+window.showDetail = function(id) {
+  const r = allResults.find(x => x.id === id);
+  if (!r) return;
+
+  document.getElementById('modal-team-name').textContent = r.teamName || 'Unnamed';
+
+  const whenTs  = r.completedAt?.toDate ? r.completedAt.toDate() : null;
+  const whenStr = whenTs ? whenTs.toLocaleString() : 'Unknown';
+
+  // Parse hint detail string: "Room 1 Q1: no hint | Room 1 Q2: hint used | ..."
+  let detailRows = '';
+  if (r.hintDetail) {
+    const entries = r.hintDetail.split(' | ');
+    let currentRoom = '';
+    entries.forEach(entry => {
+      const parts = entry.split(': ');
+      if (parts.length < 2) return;
+      const label  = parts[0].trim();
+      const status = parts[1].trim();
+      const isHint = status === 'hint used';
+
+      // Extract room name from label (e.g. "Room 1 Q3")
+      const roomMatch = label.match(/^(Room \d+)/);
+      const room = roomMatch ? roomMatch[1] : '';
+      if (room !== currentRoom) {
+        currentRoom = room;
+        detailRows += `<div style="font-family:var(--mono);font-size:0.6rem;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;padding:0.5rem 0 0.25rem;margin-top:${detailRows?'0.5rem':'0'}">${room}</div>`;
+      }
+
+      detailRows += `
+        <div class="modal-q-row">
+          <span class="modal-q-label">${label.replace(/^Room \d+ /, '')}</span>
+          <span class="${isHint ? 'modal-q-status-hint' : 'modal-q-status-ok'}">
+            ${isHint ? '⚡ Hint used (+2 min)' : '✓ No hint'}
+          </span>
+        </div>`;
+    });
+  }
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-stats" style="margin-bottom:1rem">
+      <div class="modal-stat">
+        <div class="modal-stat-val" style="color:var(--success)">${r.finalTime || '—'}</div>
+        <div class="modal-stat-label">Final Time</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-val" style="color:var(--text2)">${r.baseTime || '—'}</div>
+        <div class="modal-stat-label">Base Time</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-val" style="color:${r.totalHints?'var(--warning)':'var(--success)'}">${r.totalHints || 0}</div>
+        <div class="modal-stat-label">Total Hints</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-val" style="color:var(--danger)">${r.hintPenalty || '00:00:00'}</div>
+        <div class="modal-stat-label">Time Penalty</div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">Question-by-Question Hint Log</div>
+      ${detailRows || '<div style="color:var(--text3);font-family:var(--mono);font-size:0.72rem;padding:0.5rem 0">No hint detail available</div>'}
+    </div>
+    <div class="modal-section" style="margin-top:0.75rem">
+      <div class="modal-section-label">Completed At</div>
+      <div style="font-family:var(--mono);font-size:0.72rem;color:var(--text2)">${whenStr}</div>
+    </div>`;
+
+  document.getElementById('detail-modal').classList.add('show');
+};
+
+window.closeModal = function() {
+  document.getElementById('detail-modal').classList.remove('show');
+};
+
+// Close modal on overlay click
+document.getElementById('detail-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function secsToTime(secs) {
+  if (!secs || isNaN(secs)) return '—';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return [h,m,s].map(v => String(v).padStart(2,'0')).join(':');
+}
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Auto-refresh (kept for manual refresh button, real updates via onSnapshot)
+function startAutoRefresh() {
+  // onSnapshot listeners provide real-time updates — no polling needed
+  // This is a no-op kept for compatibility
+}
+
+
+// ── Render live progress cards ─────────────────────────────────────────────
+function renderLiveProgress() {
+  const area  = document.getElementById('live-cards-area');
+  const empty = document.getElementById('live-empty');
+  const count = document.getElementById('live-count');
+
+  if (!liveResults.length) {
+    count.textContent = '0 teams active';
+    if (empty) empty.style.display = 'block';
+    area.querySelectorAll('.progress-cards').forEach(el => el.remove());
+    return;
+  }
+
+  count.textContent = liveResults.length + ' team' + (liveResults.length !== 1 ? 's' : '') + ' active';
+  if (empty) empty.style.display = 'none';
+
+  // Sort by most recently updated
+  const sorted = [...liveResults].sort((a,b) => {
+    const at = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+    const bt = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+    return bt - at;
+  });
+
+  // Total questions across all 3 rooms (6 + 5 + 6 = 17)
+  const TOTAL_Q = 17;
+
+  let cardsHtml = '<div class="progress-cards">';
+  sorted.forEach(p => {
+    const roomNum   = p.currentRoom   || 1;
+    const qNum      = p.currentQuestion || 1;
+    const qTotal    = p.totalRoomQ    || 6;
+    const answered  = p.questionsAnswered || 0;
+    const elapsed   = p.elapsedSeconds || 0;
+    const hints     = p.hintsUsed     || 0;
+    const status    = p.status        || 'in_progress';
+    const roomName  = p.currentRoomName || ('Room ' + roomNum);
+    const isEntering = status === 'entering_code' || status === 'room_complete' || status === 'completing';
+
+    const overallPct = Math.round((answered / TOTAL_Q) * 100);
+    const roomPct    = Math.round(((qNum - 1) / qTotal) * 100);
+
+    const r1done = p.room1Done || false;
+    const r2done = p.room2Done || false;
+    const r3done = p.room3Done || false;
+
+    const roomClass   = isEntering ? 'code' : 'room-' + roomNum;
+    const cardClass   = isEntering ? 'entering-code' : 'room-' + roomNum;
+    const barClass    = roomClass;
+
+    const pipHtml = `
+      <div class="pc-room-pip ${r1done?'done':'todo'}" title="Room 1">${r1done?'✓':'1'}</div>
+      <div class="pc-room-pip ${r2done?'done':'todo'}" title="Room 2">${r2done?'✓':'2'}</div>
+      <div class="pc-room-pip ${r3done?'done':'todo'}" title="Room 3">${r3done?'✓':'3'}</div>
+    `;
+
+    cardsHtml += `
+    <div class="progress-card ${cardClass}">
+      <div class="pc-header">
+        <div class="pc-name" title="${esc(p.teamName)}">${esc(p.teamName || 'Unnamed')}</div>
+        <div class="pc-elapsed">${secsToTime(elapsed)}</div>
+      </div>
+      <div class="pc-location">
+        <span class="pc-room-badge ${roomClass}">
+          ${isEntering ? '🔐 Entering Code' : 'Room ' + roomNum}
+        </span>
+        ${!isEntering
+          ? `<span class="pc-q-text">Q${qNum} of ${qTotal}</span>`
+          : `<span class="pc-status-entering">⟳ Entering unlock code…</span>`
+        }
+      </div>
+      <div class="pc-bar-track">
+        <div class="pc-bar-fill ${barClass}" style="width:${overallPct}%"></div>
+      </div>
+      <div class="pc-footer">
+        <span class="pc-hints-badge ${hints===0?'zero':'some'}">
+          ${hints===0 ? '✓ No hints' : hints + ' hint' + (hints!==1?'s':'')}
+        </span>
+        <div class="pc-rooms-done">${pipHtml}</div>
+      </div>
+    </div>`;
+  });
+  cardsHtml += '</div>';
+
+  // Replace existing cards
+  const existing = area.querySelector('.progress-cards');
+  if (existing) existing.outerHTML = cardsHtml;
+  else area.insertAdjacentHTML('beforeend', cardsHtml);
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+startRealtimeListeners();
+fetchResults();
+startAutoRefresh();
+</script>
+
+<!-- ── PIN MODAL ─────────────────────────────────────────────────── -->
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <div class="pin-title">🗑 Clear All Results</div>
+    <div class="pin-sub">Enter the 4-digit instructor PIN to delete<br>all results from Firebase.</div>
+    <div class="pin-warning">
+      This permanently deletes every team's results.<br>
+      Use between class sections only.
+    </div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0">_</div>
+      <div class="pin-dot" id="pd1">_</div>
+      <div class="pin-dot" id="pd2">_</div>
+      <div class="pin-dot" id="pd3">_</div>
+    </div>
+    <div class="pin-numpad" id="pin-numpad"></div>
+    <div class="pin-error" id="pin-error"></div>
+    <button class="pin-cancel" onclick="closePinModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- ── SUCCESS TOAST ─────────────────────────────────────────────── -->
+<div class="clear-success" id="clear-success">✓ All results cleared successfully</div>
+
+</body>
+</html>

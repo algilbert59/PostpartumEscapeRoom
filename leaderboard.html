@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Blue — Class Leaderboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #060a10;
+  --surface:  #0d1420;
+  --surface2: #131d2e;
+  --border:   #1e2e44;
+  --border2:  #2a3f5c;
+  --text:     #e8edf5;
+  --text2:    #7a9ab8;
+  --text3:    #3f5570;
+  --accent:   #00d4ff;
+  --success:  #00e676;
+  --warning:  #ffab40;
+  --danger:   #ff5252;
+  --gold:     #ffd54f;
+  --silver:   #b0bec5;
+  --bronze:   #cd9b5a;
+  --teal:     #2ec4b6;
+  --mono:     'Space Mono', monospace;
+  --sans:     'Syne', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Scanline + grid atmosphere ── */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,212,255,0.015) 2px, rgba(0,212,255,0.015) 4px),
+    radial-gradient(ellipse at 50% -10%, rgba(0,212,255,0.08) 0%, transparent 60%);
+}
+
+/* ── HEADER ── */
+.header {
+  position: relative; z-index: 10;
+  padding: 1.25rem 2rem 1rem;
+  border-bottom: 1px solid var(--border2);
+  background: linear-gradient(180deg, rgba(0,212,255,0.04) 0%, transparent 100%);
+  flex-shrink: 0;
+}
+.header-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1400px; margin: 0 auto;
+}
+.header-left { display: flex; align-items: center; gap: 1.25rem; }
+.logo-mark {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--accent);
+  letter-spacing: 0.2em; text-transform: uppercase;
+  border: 1px solid rgba(0,212,255,0.3); padding: 0.3em 0.8em; border-radius: 2px;
+  background: rgba(0,212,255,0.06);
+}
+.header-title {
+  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+  font-weight: 800; color: #fff; letter-spacing: -0.01em;
+}
+.header-title span { color: var(--accent); }
+.header-right { display: flex; align-items: center; gap: 1.5rem; }
+.live-pill {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-family: var(--mono); font-size: 0.62rem; color: var(--success);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.25);
+  padding: 0.3em 0.8em; border-radius: 20px;
+}
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.countdown {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--text3);
+  letter-spacing: 0.08em;
+}
+.countdown span { color: var(--text2); }
+
+/* ── STAT STRIP ── */
+.stat-strip {
+  position: relative; z-index: 10;
+  display: flex; gap: 0; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.stat-item {
+  flex: 1; padding: 0.6rem 1.5rem; text-align: center;
+  border-right: 1px solid var(--border);
+  transition: background 0.2s;
+}
+.stat-item:last-child { border-right: none; }
+.stat-item-val {
+  font-family: var(--mono); font-size: 1.4rem; font-weight: 700;
+  color: var(--text); line-height: 1;
+}
+.stat-item-val.c-green  { color: var(--success); }
+.stat-item-val.c-gold   { color: var(--gold); }
+.stat-item-val.c-accent { color: var(--accent); }
+.stat-item-val.c-warn   { color: var(--warning); }
+.stat-item-label {
+  font-family: var(--mono); font-size: 0.55rem; color: var(--text3);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.2rem;
+}
+
+/* ── MAIN CONTENT ── */
+.main {
+  flex: 1; overflow: hidden; position: relative; z-index: 10;
+  display: flex; flex-direction: column;
+}
+
+/* ── TABLE HEADER ── */
+.table-header {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr 8rem 8rem 5rem 5rem 5rem;
+  gap: 0; padding: 0.5rem 2rem;
+  border-bottom: 1px solid var(--border2);
+  background: var(--surface2);
+  flex-shrink: 0;
+  max-width: 1400px; width: 100%; margin: 0 auto;
+}
+.th {
+  font-family: var(--mono); font-size: 0.58rem; color: var(--text3);
+  letter-spacing: 0.12em; text-transform: uppercase; padding: 0 0.5rem;
+}
+.th.center { text-align: center; }
+
+/* ── ROWS CONTAINER ── */
+.rows-container {
+  flex: 1; overflow-y: auto; padding: 0.5rem 0;
+}
+.rows-inner { max-width: 1400px; margin: 0 auto; padding: 0 2rem; }
+
+/* ── ROW ── */
+.team-row {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr 8rem 8rem 5rem 5rem 5rem;
+  gap: 0; align-items: center;
+  padding: 0.6rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.3rem;
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.team-row::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; border-radius: 4px 0 0 4px;
+  background: transparent; transition: background 0.3s;
+}
+.team-row.rank-1 { background: rgba(255,213,79,0.06); border-color: rgba(255,213,79,0.2); }
+.team-row.rank-1::before { background: var(--gold); }
+.team-row.rank-2 { background: rgba(176,190,197,0.05); border-color: rgba(176,190,197,0.15); }
+.team-row.rank-2::before { background: var(--silver); }
+.team-row.rank-3 { background: rgba(205,155,90,0.05); border-color: rgba(205,155,90,0.15); }
+.team-row.rank-3::before { background: var(--bronze); }
+.team-row.rank-other { background: rgba(255,255,255,0.02); border-color: var(--border); }
+.team-row.just-arrived { animation: rowArrive 1s ease; }
+@keyframes rowArrive {
+  0%   { background: rgba(0,230,118,0.18); border-color: rgba(0,230,118,0.5); transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+/* ── CELL STYLES ── */
+.cell { padding: 0 0.5rem; }
+.cell-rank { text-align: center; }
+.medal { font-size: 1.3rem; line-height: 1; }
+.rank-num {
+  font-family: var(--mono); font-size: 0.8rem; font-weight: 700; color: var(--text3);
+}
+.cell-team {}
+.team-name {
+  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  font-weight: 800; color: var(--text); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.team-name.rank-1 { color: var(--gold); }
+.team-name.rank-2 { color: var(--silver); }
+.team-name.rank-3 { color: var(--bronze); }
+.team-sub {
+  font-family: var(--mono); font-size: 0.58rem; color: var(--text3);
+  letter-spacing: 0.06em; margin-top: 0.15rem;
+}
+
+.cell-time { text-align: center; }
+.time-val {
+  font-family: var(--mono); font-size: clamp(0.9rem, 1.6vw, 1.2rem);
+  font-weight: 700; color: var(--success); letter-spacing: 0.05em;
+}
+.time-val.rank-1 { font-size: clamp(1rem, 1.8vw, 1.4rem); color: var(--gold); }
+.base-time-val {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--text3);
+  letter-spacing: 0.04em; margin-top: 0.15rem; text-align: center;
+}
+
+.cell-hints { text-align: center; }
+.hints-val {
+  font-family: var(--mono); font-size: 1rem; font-weight: 700;
+}
+.hints-val.zero { color: var(--success); }
+.hints-val.low  { color: var(--warning); }
+.hints-val.high { color: var(--danger); }
+.hints-label {
+  font-family: var(--mono); font-size: 0.55rem; color: var(--text3);
+  letter-spacing: 0.06em; margin-top: 0.1rem;
+}
+
+.cell-room { text-align: center; }
+.room-pip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.6rem; height: 1.6rem; border-radius: 3px;
+  font-family: var(--mono); font-size: 0.65rem; font-weight: 700;
+}
+.room-pip.clean { background: rgba(0,230,118,0.12); color: var(--success); border: 1px solid rgba(0,230,118,0.25); }
+.room-pip.used  { background: rgba(255,171,64,0.12); color: var(--warning); border: 1px solid rgba(255,171,64,0.25); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; text-align: center;
+  padding: 3rem;
+}
+.empty-icon {
+  font-size: 4rem; margin-bottom: 1.5rem;
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+.empty-title {
+  font-size: 1.5rem; font-weight: 800; color: var(--text2); margin-bottom: 0.5rem;
+}
+.empty-sub { font-family: var(--mono); font-size: 0.7rem; color: var(--text3); line-height: 1.8; }
+
+/* ── PENDING BANNER ── */
+.pending-banner {
+  text-align: center; padding: 0.5rem; flex-shrink: 0;
+  font-family: var(--mono); font-size: 0.62rem; color: var(--text3);
+  border-top: 1px solid var(--border); background: var(--surface);
+  letter-spacing: 0.06em;
+}
+.pending-banner span { color: var(--accent); }
+
+/* ── TICKER (scrolling teams still playing) ── */
+.ticker {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 0.45rem 2rem; flex-shrink: 0;
+  display: flex; align-items: center; gap: 1rem; overflow: hidden;
+}
+.ticker-label {
+  font-family: var(--mono); font-size: 0.58rem; color: var(--text3);
+  letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+  flex-shrink: 0;
+}
+.ticker-label span { color: var(--warning); }
+
+/* ── COLUMN LEGEND ── */
+.legend {
+  display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0;
+  padding: 0.4rem 2rem; border-top: 1px solid var(--border);
+  background: var(--surface); font-family: var(--mono); font-size: 0.58rem;
+  color: var(--text3); letter-spacing: 0.08em;
+}
+.legend-item { display: flex; align-items: center; gap: 0.35rem; }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .table-header,
+  .team-row { grid-template-columns: 3rem 1fr 7rem 5rem 4rem; }
+  .th:nth-child(5), .th:nth-child(6), .th:nth-child(7),
+  .cell:nth-child(5), .cell:nth-child(6), .cell:nth-child(7) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="logo-mark">Code Blue</div>
+      <h1 class="header-title">Class <span>Leaderboard</span></h1>
+    </div>
+    <div class="header-right">
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+      <div class="countdown" id="countdown">Next refresh in <span id="countdown-val">30</span>s</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── STAT STRIP ───────────────────────────────────────────────── -->
+<div class="stat-strip">
+  <div class="stat-item">
+    <div class="stat-item-val c-green" id="s-teams">—</div>
+    <div class="stat-item-label">Teams Finished</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-item-val c-gold" id="s-fastest">—</div>
+    <div class="stat-item-label">Fastest Base Time</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-item-val c-accent" id="s-avg">—</div>
+    <div class="stat-item-label">Class Average</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-item-val c-green" id="s-nohint">—</div>
+    <div class="stat-item-label">Clean Runs (No Hints)</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-item-val c-warn" id="s-hints">—</div>
+    <div class="stat-item-label">Total Hints Used</div>
+  </div>
+</div>
+
+<!-- ── TABLE HEADER ─────────────────────────────────────────────── -->
+<div class="table-header">
+  <div class="th center">#</div>
+  <div class="th">Team</div>
+  <div class="th center">Final Time</div>
+  <div class="th center">Base Time</div>
+  <div class="th center">Hints</div>
+  <div class="th center">R1</div>
+  <div class="th center">R2</div>
+  <!-- R3 shown via hints column on small screens -->
+</div>
+
+<!-- ── MAIN / ROWS ───────────────────────────────────────────────── -->
+<div class="main">
+  <div class="rows-container">
+    <div class="rows-inner" id="rows-inner">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🏥</div>
+        <div class="empty-title">Simulation in Progress</div>
+        <div class="empty-sub">
+          Results will appear here as teams complete all three rooms.<br>
+          This board refreshes automatically every 30 seconds.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── LEGEND ────────────────────────────────────────────────────── -->
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-dot" style="background:var(--success)"></div>
+    <span>Base Time = total time minus hint penalties (used for ranking)</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:var(--success)"></div>
+    <span style="color:var(--success)">✓ = no hint used in that room</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:var(--warning)"></div>
+    <span style="color:var(--warning)">⚡ = hint used (each hint +2 min)</span>
+  </div>
+  <div class="legend-item" style="margin-left:auto">
+    <span>R1 = Postpartum Hemorrhage &nbsp;|&nbsp; R2 = Pathologic Jaundice &nbsp;|&nbsp; R3 = Postpartum Psychosis</span>
+  </div>
+</div>
+
+<!-- ── FIREBASE ──────────────────────────────────────────────────── -->
+<script type="module">
+import { initializeApp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyAPzsjLHcbmZM4uvHeLYvop7BGdjb0MymE",
+  authDomain:        "escape-room-ff39e.firebaseapp.com",
+  projectId:         "escape-room-ff39e",
+  storageBucket:     "escape-room-ff39e.firebasestorage.app",
+  messagingSenderId: "694339289590",
+  appId:             "1:694339289590:web:d70f011a10af8956ef47d7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── State ──────────────────────────────────────────────────────────────────
+let results      = [];
+let knownIds     = new Set();
+let countdown    = 30;
+let countdownInt = null;
+
+// ── Fetch ──────────────────────────────────────────────────────────────────
+async function fetchResults() {
+  try {
+    const q    = query(collection(db, 'results'), orderBy('completedAt', 'asc'));
+    const snap = await getDocs(q);
+    const newIds = new Set();
+
+    results = snap.docs.map(d => {
+      newIds.add(d.id);
+      return { id: d.id, ...d.data() };
+    });
+
+    const justArrived = [...newIds].filter(id => !knownIds.has(id));
+    knownIds = newIds;
+
+    render(justArrived);
+    resetCountdown();
+  } catch(err) {
+    console.error('Firebase fetch error:', err);
+  }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render(justArrived) {
+  const total = results.length;
+
+  // Sort by baseSeconds ascending (fastest base time = rank 1)
+  const sorted = [...results].sort((a,b) => {
+    const as = typeof a.baseSeconds === 'number' ? a.baseSeconds : 99999;
+    const bs = typeof b.baseSeconds === 'number' ? b.baseSeconds : 99999;
+    return as - bs;
+  });
+
+  // Stats strip
+  document.getElementById('s-teams').textContent = total || '—';
+  if (total > 0) {
+    document.getElementById('s-fastest').textContent = sorted[0].baseTime || sorted[0].finalTime || '—';
+    const avgSecs = Math.round(results.reduce((s,r) => s + (r.baseSeconds || 0), 0) / total);
+    document.getElementById('s-avg').textContent = secsToTime(avgSecs);
+    const clean = results.filter(r => (r.totalHints || 0) === 0).length;
+    document.getElementById('s-nohint').textContent = clean;
+    const totalHints = results.reduce((s,r) => s + (r.totalHints || 0), 0);
+    document.getElementById('s-hints').textContent = totalHints;
+  } else {
+    ['s-fastest','s-avg','s-nohint','s-hints'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+  }
+
+  // Rows
+  const container = document.getElementById('rows-inner');
+  const emptyState = document.getElementById('empty-state');
+
+  if (total === 0) {
+    if (emptyState) emptyState.style.display = 'flex';
+    return;
+  }
+  if (emptyState) emptyState.style.display = 'none';
+
+  // Build rows HTML
+  let html = '';
+  sorted.forEach((r, idx) => {
+    const rank      = idx + 1;
+    const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+    const isNew     = justArrived.includes(r.id);
+    const nameClass = rank <= 3 ? `rank-${rank}` : '';
+
+    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
+
+    const h1 = r.room1Hints || 0;
+    const h2 = r.room2Hints || 0;
+    const h3 = r.room3Hints || 0;
+    const totalH = r.totalHints || 0;
+    const hintCls = totalH === 0 ? 'zero' : totalH <= 2 ? 'low' : 'high';
+
+    // Time delta from leader (for non-leaders)
+    const leaderSecs  = sorted[0].baseSeconds || 0;
+    const thisSecs    = r.baseSeconds || 0;
+    const diffSecs    = thisSecs - leaderSecs;
+    const diffStr     = rank > 1 && diffSecs > 0 ? '+' + secsToTime(diffSecs) : '';
+
+    html += `
+    <div class="team-row ${rankClass}${isNew ? ' just-arrived' : ''}" data-id="${esc(r.id)}">
+
+      <div class="cell cell-rank">
+        ${medal
+          ? `<div class="medal">${medal}</div>`
+          : `<div class="rank-num">${rank}</div>`
+        }
+      </div>
+
+      <div class="cell cell-team">
+        <div class="team-name ${nameClass}" title="${esc(r.teamName)}">${esc(r.teamName || 'Unnamed')}</div>
+        <div class="team-sub">
+          ${diffStr ? `<span style="color:var(--text3)">${diffStr} behind</span>` : rank === 1 ? '<span style="color:var(--gold)">Leading the class</span>' : ''}
+        </div>
+      </div>
+
+      <div class="cell cell-time">
+        <div class="time-val ${rank === 1 ? 'rank-1' : ''}">${r.finalTime || '—'}</div>
+        ${r.hintPenalty && r.hintPenalty !== '00:00:00'
+          ? `<div style="font-family:var(--mono);font-size:0.55rem;color:var(--warning);text-align:center;margin-top:0.1rem">+${r.hintPenalty} penalty</div>`
+          : ''
+        }
+      </div>
+
+      <div class="cell cell-time">
+        <div class="time-val" style="font-size:${rank===1?'1.2rem':'1rem'};color:${rank===1?'var(--gold)':'var(--text2)'}">${r.baseTime || '—'}</div>
+      </div>
+
+      <div class="cell cell-hints">
+        <div class="hints-val ${hintCls}">${totalH === 0 ? '✓' : totalH}</div>
+        <div class="hints-label">${totalH === 0 ? 'clean' : totalH === 1 ? '1 hint' : totalH + ' hints'}</div>
+      </div>
+
+      <div class="cell cell-room">
+        <div class="room-pip ${h1===0?'clean':'used'}">${h1===0?'✓':'⚡'}</div>
+      </div>
+
+      <div class="cell cell-room">
+        <div class="room-pip ${h2===0?'clean':'used'}">${h2===0?'✓':'⚡'}</div>
+      </div>
+
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ── Countdown ──────────────────────────────────────────────────────────────
+function resetCountdown() {
+  countdown = 30;
+  document.getElementById('countdown-val').textContent = countdown;
+  if (countdownInt) clearInterval(countdownInt);
+  countdownInt = setInterval(() => {
+    countdown--;
+    const el = document.getElementById('countdown-val');
+    if (el) el.textContent = Math.max(countdown, 0);
+    if (countdown <= 0) {
+      clearInterval(countdownInt);
+      fetchResults();
+    }
+  }, 1000);
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function secsToTime(secs) {
+  if (!secs || isNaN(secs)) return '—';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return [h,m,s].map(v => String(v).padStart(2,'0')).join(':');
+}
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+fetchResults();
+</script>
+</body>
+</html>
